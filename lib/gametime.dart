@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import '/camera_pose/pose_detector.dart';
 
 class Gametime extends StatefulWidget {
   const Gametime({Key? key, required this.cameras}) : super(key: key);
@@ -49,7 +50,7 @@ class _GametimeState extends State<Gametime> {
       return Container();
     }
     return MaterialApp(
-      home: CameraPreview(controller),
+      home: PoseDetectorView(),
     );
   }
 }
