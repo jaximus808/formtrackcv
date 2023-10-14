@@ -1,15 +1,8 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'start_page.dart';
 import "gametime.dart";
 
-late List<CameraDescription> _cameras;
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  _cameras = await availableCameras();
-
+void main() {
   runApp(const Router());
 }
 
@@ -24,7 +17,7 @@ class Router extends StatelessWidget {
       initialRoute: '/',
       routes: {
         "/": (context) => const StartPage(),
-        "/gametime": (context) => Gametime(cameras: _cameras)
+        "/gametime": (context) => const Gametime()
       },
     );
   }

@@ -1,42 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import '/camera_pose/pose_detector.dart';
 
 class Gametime extends StatefulWidget {
-  const Gametime({Key? key, required this.cameras}) : super(key: key);
-
-  final List<CameraDescription> cameras;
+  const Gametime({Key? key}) : super(key: key);
 
   @override
   State<Gametime> createState() => _GametimeState();
 }
 
 class _GametimeState extends State<Gametime> {
-  late CameraController controller;
-
   @override
   void initState() {
     super.initState();
-
-    // widget.cameras grabs cameras field from parent class
-    controller = CameraController(widget.cameras[0], ResolutionPreset.max);
-    controller.initialize().then((_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {});
-    }).catchError((Object e) {
-      if (e is CameraException) {
-        switch (e.code) {
-          case 'CameraAccessDenied':
-            // Handle access errors here.
-            break;
-          default:
-            // Handle other errors here.
-            break;
-        }
-      }
-    });
   }
 
   @override
@@ -46,11 +21,10 @@ class _GametimeState extends State<Gametime> {
 
   @override
   Widget build(BuildContext context) {
-    if (!controller.value.isInitialized) {
-      return Container();
-    }
     return MaterialApp(
-      home: PoseDetectorView(),
-    );
+        home: Container(
+            alignment: Alignment.center,
+            width: double.infinity,
+            child: PoseDetectorView()));
   }
 }
