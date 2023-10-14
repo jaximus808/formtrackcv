@@ -17,9 +17,13 @@ class PoseDetectorView extends StatefulWidget {
   State<StatefulWidget> createState() => _PoseDetectorViewState();
 }
 
+double abs(double n) {
+  return max(n, -n);
+}
+
 class _PoseDetectorViewState extends State<PoseDetectorView> {
-  final PoseDetector _poseDetector =
-      PoseDetector(options: PoseDetectorOptions());
+  final PoseDetector _poseDetector = PoseDetector(
+      options: PoseDetectorOptions(model: PoseDetectionModel.accurate));
   bool _canProcess = true;
   bool _isBusy = false;
   bool _firstImage = true;
@@ -28,12 +32,14 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
 
   bool _isCalibrating = true;
 
-  double maxDist = 0.0;
+  double average = 0.0;
+  double total = 0;
+  double p = 0;
   double rangeError = 0.2;
 
   String _displayText = "cock";
 
-  var _cameraLensDirection = CameraLensDirection.back;
+  var _cameraLensDirection = CameraLensDirection.front;
   @override
   void initState() {
     super.initState();
@@ -63,30 +69,61 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     ]);
   }
 
-  double getDist(Pose _pose) {
+  double getDist(Pose _pose, double imgWidth) {
     double distL = -1.0;
 
     double distR = -1.0;
+
     final landmark0 = _pose.landmarks[PoseLandmarkType.leftShoulder];
     final landmark1 = _pose.landmarks[PoseLandmarkType.rightShoulder];
     final landmark2 = _pose.landmarks[PoseLandmarkType.leftHip];
     final landmark3 = _pose.landmarks[PoseLandmarkType.rightHip];
 
-    if (landmark0?.x != null && landmark2?.x != null) {
+    // if (landmark0?.x != null && landmark2?.x != null) {
+    //   landmark0!;
+    //   landmark2!;
+    //   if (landmark0.likelihood > 0.9 && landmark2.likelihood > 0.9) {
+    //     distL = sqrt(pow((landmark0.x - landmark2.x), 2) +
+    //             pow((landmark0.y - landmark2.y), 2) +
+    //             pow((landmark0.z - landmark2.z), 2)) *
+    //         max(landmark0.z - landmark2.z, -(landmark0.z - landmark2.z)) /
+    //         2;
+    //   }
+    // }
+
+    // if (landmark1?.x != null && landmark3?.x != null) {
+    //   landmark1!;
+    //   landmark3!;
+    //   if (landmark1.likelihood > 0.9 && landmark3.likelihood > 0.9) {
+    //     distR = sqrt(pow((landmark1.x - landmark3.x), 2) +
+    //             pow((landmark1.y - landmark3.y), 2) +
+    //             pow((landmark1.z - landmark3.z), 2)) *
+    //         max(landmark1.z - landmark3.z, -(landmark1.z - landmark3.z)) /
+    //         2;
+    //     ;
+    //   }
+    // }
+
+    if (landmark0?.x != null &&
+        landmark2?.x != null &&
+        landmark1?.x != null &&
+        landmark3?.x != null) {
       landmark0!;
       landmark2!;
-      distL = sqrt(pow((landmark0.x - landmark2.x), 2) +
-          pow((landmark0.y - landmark2.y), 2) +
-          pow((landmark0.z - landmark2.z), 2));
-    }
-
-    if (landmark1?.x != null && landmark3?.x != null) {
       landmark1!;
       landmark3!;
-      distR = sqrt(pow((landmark1.x - landmark3.x), 2) +
-          pow((landmark1.y - landmark3.y), 2) +
-          pow((landmark1.z - landmark3.z), 2));
+      double shoulderWidth = abs(landmark0.x - landmark1.x);
+      if (landmark0.likelihood > 0.9 && landmark2.likelihood > 0.9) {
+        distL =
+            abs(landmark0.y - landmark2.y) * (1 / (shoulderWidth / imgWidth));
+      }
+      if (landmark1.likelihood > 0.9 && landmark3.likelihood > 0.9) {
+        distR =
+            abs(landmark1.y - landmark3.y) * (1 / (shoulderWidth / imgWidth));
+        ;
+      }
     }
+
     print(distR);
     print(distL);
     if (distR < 0 && distL < 0) {
@@ -102,12 +139,14 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     }
   }
 
-  void calibrate(List<Pose> poses) {
-    double tempDist = getDist(poses[0]);
+  void calibrate(List<Pose> poses, double width) {
+    double tempDist = getDist(poses[0], width);
 
-    if (tempDist > maxDist) {
+    if (tempDist > 0) {
       setState(() {
-        maxDist = tempDist;
+        p++;
+        total += tempDist;
+        average = total / p;
       });
     }
   }
@@ -118,7 +157,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     if (_firstImage) {
       _firstImage = false;
       _isCalibrating = true;
-      Timer(const Duration(seconds: 10), () {
+      Timer(const Duration(seconds: 20), () {
         _isCalibrating = false;
       });
     }
@@ -131,10 +170,10 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
 
     if (!_firstImage) {
       if (_isCalibrating) {
-        if (poses.isNotEmpty) {
-          calibrate(List.from(poses));
+        if (poses.isNotEmpty && inputImage.metadata?.size != null) {
+          calibrate(List.from(poses), inputImage.metadata!.size.width);
           setState(() {
-            _displayText = "calibrating, max length is: $maxDist";
+            _displayText = "calibrating, max length is: $average";
           });
         }
       } else {
