@@ -29,6 +29,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   bool _firstImage = true;
   CustomPaint? _customPaint;
   String? _text;
+  bool camOff = true;
 
   bool _isCalibrating = true;
 
@@ -37,12 +38,17 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   double p = 0;
   double rangeError = 0.2;
 
-  String _displayText = "cock";
+  String _displayText = "stand forward and still!";
 
   var _cameraLensDirection = CameraLensDirection.front;
   @override
   void initState() {
     super.initState();
+    Timer(const Duration(seconds: 3), () {
+      setState(() {
+        camOff = false;
+      });
+    });
   }
 
   @override
@@ -78,31 +84,6 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     final landmark1 = _pose.landmarks[PoseLandmarkType.rightShoulder];
     final landmark2 = _pose.landmarks[PoseLandmarkType.leftHip];
     final landmark3 = _pose.landmarks[PoseLandmarkType.rightHip];
-
-    // if (landmark0?.x != null && landmark2?.x != null) {
-    //   landmark0!;
-    //   landmark2!;
-    //   if (landmark0.likelihood > 0.9 && landmark2.likelihood > 0.9) {
-    //     distL = sqrt(pow((landmark0.x - landmark2.x), 2) +
-    //             pow((landmark0.y - landmark2.y), 2) +
-    //             pow((landmark0.z - landmark2.z), 2)) *
-    //         max(landmark0.z - landmark2.z, -(landmark0.z - landmark2.z)) /
-    //         2;
-    //   }
-    // }
-
-    // if (landmark1?.x != null && landmark3?.x != null) {
-    //   landmark1!;
-    //   landmark3!;
-    //   if (landmark1.likelihood > 0.9 && landmark3.likelihood > 0.9) {
-    //     distR = sqrt(pow((landmark1.x - landmark3.x), 2) +
-    //             pow((landmark1.y - landmark3.y), 2) +
-    //             pow((landmark1.z - landmark3.z), 2)) *
-    //         max(landmark1.z - landmark3.z, -(landmark1.z - landmark3.z)) /
-    //         2;
-    //     ;
-    //   }
-    // }
 
     if (landmark0?.x != null &&
         landmark2?.x != null &&
@@ -152,6 +133,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   }
 
   Future<void> _processImage(InputImage inputImage) async {
+    if (camOff) return;
     if (!_canProcess) return;
     if (_isBusy) return;
     if (_firstImage) {
