@@ -37,6 +37,12 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   double total = 0;
   double p = 0;
   double rangeError = 0.2;
+  double shoulderHipDisAvg = 0.0;
+  double totalSH = 0.0;
+  double shP = 0.0;
+
+  double recentDist = 0.0;
+  double recentshoulderHipDis = 0.0;
 
   String _displayText = "stand forward and still!";
 
@@ -69,13 +75,22 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
         initialCameraLensDirection: _cameraLensDirection,
         onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
       ),
-      Container(
-          alignment: const FractionalOffset(0.5, 0.75),
-          child: Text(_displayText))
+      FractionallySizedBox(
+        alignment: Alignment.bottomCenter,
+        widthFactor: 0.5,
+        heightFactor: 0.2,
+        child: Container(
+            alignment: const FractionalOffset(0.5, 0.75),
+            color: Colors.lightBlue,
+            child: Text(
+              _displayText,
+              style: const TextStyle(color: Colors.black),
+            )),
+      )
     ]);
   }
 
-  double getDist(Pose _pose, double imgWidth) {
+  double getDist(Pose _pose, double imgWidth, bool calibrating) {
     double distL = -1.0;
 
     double distR = -1.0;
@@ -93,20 +108,41 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
       landmark2!;
       landmark1!;
       landmark3!;
-      double shoulderWidth = abs(landmark0.x - landmark1.x);
+      double shoulderWidth = sqrt(pow((landmark0.x - landmark1.x), 2) +
+          pow((landmark0.y - landmark1.y), 2));
       if (landmark0.likelihood > 0.9 && landmark2.likelihood > 0.9) {
-        distL =
-            abs(landmark0.y - landmark2.y) * (1 / (shoulderWidth / imgWidth));
+        distL = sqrt(pow((landmark0.x - landmark2.x), 2) +
+                pow((landmark0.y - landmark2.y), 2)) *
+            (1 / (shoulderWidth / imgWidth));
       }
       if (landmark1.likelihood > 0.9 && landmark3.likelihood > 0.9) {
-        distR =
-            abs(landmark1.y - landmark3.y) * (1 / (shoulderWidth / imgWidth));
-        ;
+        distR = sqrt(pow((landmark1.x - landmark3.x), 2) +
+                pow((landmark1.y - landmark3.y), 2)) *
+            (1 / (shoulderWidth / imgWidth));
+      }
+      if (distL > 0 && distR > 0) {
+        if (calibrating) {
+          setState(() {
+            totalSH += (abs(sqrt(pow((landmark0.x - landmark1.x), 2) +
+                        pow((landmark0.z - landmark1.z), 2)) -
+                    sqrt(pow((landmark2.x - landmark3.x), 2) +
+                        pow((landmark2.z - landmark3.z), 2)))) *
+                (1 / (shoulderWidth / imgWidth));
+            shP++;
+            shoulderHipDisAvg = totalSH / shP;
+          });
+        } else {
+          setState(() {
+            recentshoulderHipDis = (abs(sqrt(
+                        pow((landmark0.x - landmark1.x), 2) +
+                            pow((landmark0.z - landmark1.z), 2)) -
+                    sqrt(pow((landmark2.x - landmark3.x), 2) +
+                        pow((landmark2.z - landmark3.z), 2)))) *
+                (1 / (shoulderWidth / imgWidth));
+          });
+        }
       }
     }
-
-    print(distR);
-    print(distL);
     if (distR < 0 && distL < 0) {
       return -1;
     } else {
@@ -121,13 +157,23 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   }
 
   void calibrate(List<Pose> poses, double width) {
-    double tempDist = getDist(poses[0], width);
+    double tempDist = getDist(poses[0], width, true);
 
     if (tempDist > 0) {
       setState(() {
         p++;
         total += tempDist;
         average = total / p;
+      });
+    }
+  }
+
+  void calculateForm(List<Pose> poses, double width) {
+    double tempDist = getDist(poses[0], width, false);
+
+    if (tempDist > 0) {
+      setState(() {
+        recentDist = tempDist * ((recentshoulderHipDis / shoulderHipDisAvg));
       });
     }
   }
@@ -139,7 +185,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     if (_firstImage) {
       _firstImage = false;
       _isCalibrating = true;
-      Timer(const Duration(seconds: 20), () {
+      Timer(const Duration(seconds: 15), () {
         _isCalibrating = false;
       });
     }
@@ -159,9 +205,13 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
           });
         }
       } else {
-        setState(() {
-          _displayText = "done calibrating!";
-        });
+        if (poses.isNotEmpty && inputImage.metadata?.size != null) {
+          calculateForm(List.from(poses), inputImage.metadata!.size.width);
+          double percentAcc = recentDist / average;
+          setState(() {
+            _displayText = "done calibrating! current Dis: $percentAcc";
+          });
+        }
       }
     }
 

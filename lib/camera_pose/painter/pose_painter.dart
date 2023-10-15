@@ -35,6 +35,9 @@ class PosePainter extends CustomPainter {
       ..color = Colors.blueAccent;
 
     for (final pose in poses) {
+      if (pose.landmarks[PoseLandmarkType.rightShoulder]!.likelihood < 0.9) {
+        continue;
+      }
       pose.landmarks.forEach((_, landmark) {
         canvas.drawCircle(
             Offset(

@@ -21,8 +21,8 @@ class _GametimeState extends State<Gametime> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-        home: Container(
+    return Scaffold(
+        body: Container(
             alignment: Alignment.center,
             width: double.infinity,
             child: PoseDetectorView()));
