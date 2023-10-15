@@ -1,12 +1,11 @@
 import 'dart:ffi';
 import 'dart:async';
 import 'dart:math';
-
+import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-
 import 'detector_view.dart';
 import '/camera_pose/painter/pose_painter.dart';
 
@@ -29,7 +28,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   bool _firstImage = true;
   CustomPaint? _customPaint;
   String? _text;
-  bool camOff = true;
+  bool camOff = false;
 
   bool _isCalibrating = true;
 
@@ -44,23 +43,26 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
   double recentDist = 0.0;
   double recentshoulderHipDis = 0.0;
 
-  String _displayText = "stand forward and still!";
+  double errorPercent = 0.8;
+//
+
+  final audioplayer = AudioPlayer();
+  bool badform = false;
+
+  //String _displayText = "stand forward and still!";
+  String _displayText = "stand infront of the camera to start!";
 
   var _cameraLensDirection = CameraLensDirection.front;
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      setState(() {
-        camOff = false;
-      });
-    });
   }
 
   @override
   void dispose() async {
     _canProcess = false;
     _poseDetector.close();
+    audioplayer.stop();
     super.dispose();
   }
 
@@ -75,17 +77,19 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
         initialCameraLensDirection: _cameraLensDirection,
         onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
       ),
-      FractionallySizedBox(
+      Container(
+        padding: EdgeInsets.all(16.0),
         alignment: Alignment.bottomCenter,
-        widthFactor: 0.5,
-        heightFactor: 0.2,
-        child: Container(
-            alignment: const FractionalOffset(0.5, 0.75),
-            color: Colors.lightBlue,
-            child: Text(
-              _displayText,
-              style: const TextStyle(color: Colors.black),
-            )),
+        child: FractionallySizedBox(
+            alignment: Alignment.bottomCenter,
+            widthFactor: 1,
+            child: Container(
+                padding: EdgeInsets.all(16.0),
+                color: Colors.lightBlue,
+                child: Text(
+                  _displayText,
+                  style: const TextStyle(color: Colors.black, fontSize: 30),
+                ))),
       )
     ]);
   }
@@ -123,21 +127,17 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
       if (distL > 0 && distR > 0) {
         if (calibrating) {
           setState(() {
-            totalSH += (abs(sqrt(pow((landmark0.x - landmark1.x), 2) +
-                        pow((landmark0.z - landmark1.z), 2)) -
-                    sqrt(pow((landmark2.x - landmark3.x), 2) +
-                        pow((landmark2.z - landmark3.z), 2)))) *
+            totalSH += (abs(sqrt(pow((landmark0.x - landmark1.x), 2)) -
+                    sqrt(pow((landmark2.x - landmark3.x), 2)))) *
                 (1 / (shoulderWidth / imgWidth));
             shP++;
             shoulderHipDisAvg = totalSH / shP;
           });
         } else {
           setState(() {
-            recentshoulderHipDis = (abs(sqrt(
-                        pow((landmark0.x - landmark1.x), 2) +
-                            pow((landmark0.z - landmark1.z), 2)) -
-                    sqrt(pow((landmark2.x - landmark3.x), 2) +
-                        pow((landmark2.z - landmark3.z), 2)))) *
+            recentshoulderHipDis = (abs(
+                    sqrt(pow((landmark0.x - landmark1.x), 2)) -
+                        sqrt(pow((landmark2.x - landmark3.x), 2)))) *
                 (1 / (shoulderWidth / imgWidth));
           });
         }
@@ -173,7 +173,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
 
     if (tempDist > 0) {
       setState(() {
-        recentDist = tempDist * ((recentshoulderHipDis / shoulderHipDisAvg));
+        recentDist = tempDist * ((shoulderHipDisAvg / recentshoulderHipDis));
       });
     }
   }
@@ -182,32 +182,52 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
     if (camOff) return;
     if (!_canProcess) return;
     if (_isBusy) return;
-    if (_firstImage) {
-      _firstImage = false;
-      _isCalibrating = true;
-      Timer(const Duration(seconds: 15), () {
-        _isCalibrating = false;
-      });
-    }
+
     _isBusy = true;
     setState(() {
       _text = '';
     });
     //gets vertexs
     final poses = await _poseDetector.processImage(inputImage);
+    if (_firstImage) {
+      _isBusy = false;
+      if (!poses.isNotEmpty) {
+        return;
+      }
+      setState(() {
+        camOff = true;
+        _firstImage = false;
+        _displayText = "get into position and face the camera!";
+        Timer(const Duration(seconds: 5), () {
+          setState(() {
+            camOff = false;
+            Timer(const Duration(seconds: 15), () {
+              _isCalibrating = false;
+            });
+          });
+        });
+      });
 
+      return;
+    }
     if (!_firstImage) {
       if (_isCalibrating) {
         if (poses.isNotEmpty && inputImage.metadata?.size != null) {
           calibrate(List.from(poses), inputImage.metadata!.size.width);
           setState(() {
-            _displayText = "calibrating, max length is: $average";
+            _displayText = "calibrating";
           });
         }
       } else {
         if (poses.isNotEmpty && inputImage.metadata?.size != null) {
           calculateForm(List.from(poses), inputImage.metadata!.size.width);
           double percentAcc = recentDist / average;
+          if (percentAcc < errorPercent) {
+            audioplayer.play(AssetSource("music/badforming.wav"));
+          } else {
+            audioplayer.stop();
+          }
+
           setState(() {
             _displayText = "done calibrating! current Dis: $percentAcc";
           });
