@@ -201,7 +201,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
         Timer(const Duration(seconds: 5), () {
           setState(() {
             camOff = false;
-            Timer(const Duration(seconds: 15), () {
+            Timer(const Duration(seconds: 8), () {
               _isCalibrating = false;
             });
           });
@@ -223,7 +223,7 @@ class _PoseDetectorViewState extends State<PoseDetectorView> {
           calculateForm(List.from(poses), inputImage.metadata!.size.width);
           double percentAcc = recentDist / average;
           if (percentAcc < errorPercent) {
-            audioplayer.play(AssetSource("music/badforming.wav"));
+            audioplayer.play(AssetSource("music/badform.wav"));
           } else {
             audioplayer.stop();
           }
