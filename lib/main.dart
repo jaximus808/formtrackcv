@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'start_page.dart';
 import "gametime.dart";
-import 'namechange.dart';
+import '/user_auth/loginpage.dart';
+import '/user_auth/registerpage.dart';
 
 void main() {
   runApp(const Router());
@@ -19,7 +20,8 @@ class Router extends StatelessWidget {
       routes: {
         "/": (context) => const StartPage(),
         "/gametime": (context) => const Gametime(),
-        "/changeName": (context) => const NameChange()
+        "/loginpage": (context) => const LoginPage(),
+        "/registerpage": (context) => const RegisterPage()
       },
     );
   }

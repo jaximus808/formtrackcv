@@ -42,3 +42,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+codeHistories.git
+venv
+node_modules
+.bash_profile
+screencaptures

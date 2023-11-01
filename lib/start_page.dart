@@ -45,7 +45,7 @@ class _StartPageStateS extends State<StartPage> {
           backgroundColor: Colors.blue,
           leading: TextButton(
             onPressed: () {
-              Navigator.pushNamed(context, "/changeName")
+              Navigator.pushNamed(context, "/loginpage")
                   .then((value) => setState(() {
                         createprefs();
                       }));
